@@ -14,6 +14,7 @@
 namespace depthai_ros_driver {
 
 void Camera::onInit() {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     pNH = getPrivateNodeHandle();
     ph = std::make_unique<param_handlers::CameraParamHandler>(pNH, "camera");
     ph->declareParams();
@@ -53,6 +54,7 @@ void Camera::onInit() {
 }
 
 void Camera::diagCB(const diagnostic_msgs::DiagnosticArray::ConstPtr& msg) {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     for(const auto& status : msg->status) {
         std::string nodeletName = pNH.getNamespace() + "_nodelet_manager";
         nodeletName.erase(nodeletName.begin());
@@ -68,6 +70,7 @@ void Camera::diagCB(const diagnostic_msgs::DiagnosticArray::ConstPtr& msg) {
 }
 
 void Camera::start() {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     ROS_INFO("Starting camera.");
     if(!camRunning) {
         onConfigure();
@@ -77,6 +80,7 @@ void Camera::start() {
 }
 
 void Camera::stop() {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     ROS_INFO("Stopping camera.");
     if(camRunning) {
         for(const auto& node : daiNodes) {
@@ -92,6 +96,7 @@ void Camera::stop() {
 }
 
 void Camera::restart() {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     ROS_INFO("Restarting camera");
     stop();
     start();
@@ -103,6 +108,7 @@ void Camera::restart() {
 }
 
 void Camera::saveCalib() {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     auto calibHandler = device->readCalibration();
     std::stringstream savePath;
     savePath << "/tmp/" << device->getMxId().c_str() << "_calibration.json";
@@ -111,12 +117,14 @@ void Camera::saveCalib() {
 }
 
 void Camera::loadCalib(const std::string& path) {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     ROS_INFO("Reading calibration from: %s", path.c_str());
     dai::CalibrationHandler cH(path);
     pipeline->setCalibrationData(cH);
 }
 
 void Camera::savePipeline() {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     std::stringstream savePath;
     savePath << "/tmp/" << device->getMxId().c_str() << "_pipeline.json";
     ROS_INFO("Saving pipeline schema to: %s", savePath.str().c_str());
@@ -126,29 +134,34 @@ void Camera::savePipeline() {
 }
 
 bool Camera::saveCalibCB(Trigger::Request& /*req*/, Trigger::Response& res) {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     saveCalib();
     res.success = true;
     return true;
 }
 
 bool Camera::savePipelineCB(Trigger::Request& /*req*/, Trigger::Response& res) {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     savePipeline();
     res.success = true;
     return true;
 }
 
 bool Camera::startCB(Trigger::Request& /*req*/, Trigger::Response& res) {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     start();
     res.success = true;
     return true;
 }
 bool Camera::stopCB(Trigger::Request& /*req*/, Trigger::Response& res) {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     stop();
     res.success = true;
     return true;
 }
 
 void Camera::parameterCB(parametersConfig& config, uint32_t /*level*/) {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     enableIR = config.camera_i_enable_ir;
     floodlightBrighness = config.camera_i_floodlight_brightness;
     laserDotBrightness = config.camera_i_laser_dot_brightness;
@@ -168,6 +181,7 @@ void Camera::parameterCB(parametersConfig& config, uint32_t /*level*/) {
 }
 
 void Camera::onConfigure() {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     try {
         getDeviceType();
         createPipeline();
@@ -182,6 +196,7 @@ void Camera::onConfigure() {
 }
 
 void Camera::getDeviceType() {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     pipeline = std::make_shared<dai::Pipeline>();
     startDevice();
     auto name = device->getDeviceName();
@@ -198,6 +213,7 @@ void Camera::getDeviceType() {
 }
 
 void Camera::createPipeline() {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     auto generator = std::make_unique<pipeline_gen::PipelineGenerator>();
     daiNodes = generator->createPipeline(
         pNH, device, pipeline, ph->getParam<std::string>("i_pipeline_type"), ph->getParam<std::string>("i_nn_type"), ph->getParam<bool>("i_enable_imu"));
@@ -210,12 +226,14 @@ void Camera::createPipeline() {
 }
 
 void Camera::setupQueues() {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     for(const auto& node : daiNodes) {
         node->setupQueues(device);
     }
 }
 
 void Camera::startDevice() {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     ros::Rate r(1.0);
     while(!camRunning) {
         try {
@@ -281,6 +299,7 @@ void Camera::startDevice() {
 }
 
 void Camera::setIR() {
+    const std::lock_guard<std::recursive_mutex> lock(Camera::daiInitMutex);
     if(camRunning && enableIR && !device->getIrDrivers().empty()) {
         device->setIrFloodLightBrightness(floodlightBrighness);
         device->setIrLaserDotProjectorBrightness(laserDotBrightness);

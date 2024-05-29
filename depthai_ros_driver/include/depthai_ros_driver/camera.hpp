@@ -9,6 +9,7 @@
 #include "nodelet/nodelet.h"
 #include "ros/node_handle.h"
 #include "std_srvs/Trigger.h"
+#include <mutex>
 
 namespace dai {
 class Pipeline;
@@ -91,5 +92,9 @@ class Camera : public nodelet::Nodelet {
     double floodlightBrighness;
     double laserDotBrightness;
     std::unique_ptr<dai::ros::TFPublisher> tfPub;
+    static std::recursive_mutex daiInitMutex;
 };
+
+std::recursive_mutex Camera::daiInitMutex;
+
 }  // namespace depthai_ros_driver
